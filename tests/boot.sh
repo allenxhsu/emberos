@@ -9,10 +9,10 @@ SHOT="$OUT/boot.screen.ppm"; rm -f "$SHOT"
 boot_iso "$ISO" boot
 wait_for_line '^ready$' || fail "kernel never printed 'ready'"
 
-grep -qE '^EmberOS v[0-9]+\.[0-9]+\.[0-9]+$' "$SERIAL" || fail "no version banner on serial"
-grep -qE '^framebuffer: [0-9]+x[0-9]+ [0-9]+bpp$' "$SERIAL" || fail "no framebuffer line on serial"
-! grep -q '^framebuffer: none$' "$SERIAL" || fail "kernel found no framebuffer"
-! grep -qi 'panic' "$SERIAL" || fail "kernel panicked"
+grep -qE '^EmberOS v[0-9]+\.[0-9]+\.[0-9]+$' <(serial) || fail "no version banner on serial"
+grep -qE '^framebuffer: [0-9]+x[0-9]+ [0-9]+bpp$' <(serial) || fail "no framebuffer line on serial"
+! grep -q '^framebuffer: none$' <(serial) || fail "kernel found no framebuffer"
+! grep -qi 'panic' <(serial) || fail "kernel panicked"
 
 # The kernel must still be alive: it halts, it does not exit QEMU.
 kill -0 "$QPID" 2>/dev/null || fail "QEMU exited; the kernel should halt, not exit"

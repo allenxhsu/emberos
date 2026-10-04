@@ -11,7 +11,7 @@ own tests, and nothing is added until the layer below it is tested.
 
 | Milestone | What it does | State |
 |---|---|---|
-| 1. Hello | Boot via Limine, print a banner on COM1 serial and the framebuffer, halt | in progress |
+| 1. Hello | Boot via Limine, print a banner on COM1 serial and the framebuffer, halt | done |
 | 2. Traps | GDT, IDT, exception handlers, a panic that prints a register dump | planned |
 | 3. Ticks | PIC/APIC, timer and keyboard interrupts, echo keystrokes | planned |
 | 4. Memory | Physical frame allocator from the Limine memory map, new page tables | planned |

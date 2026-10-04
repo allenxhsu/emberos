@@ -18,5 +18,5 @@ xorriso -as mkisofs -quiet -R -r -J \
   -hfsplus -apm-block-size 2048 \
   --efi-boot boot/limine/limine-uefi-cd.bin -efi-boot-part --efi-boot-image \
   --protective-msdos-label "$STAGE" -o "$ISO"
-"$LIMINE/limine" bios-install "$ISO" >/dev/null
+"$LIMINE/limine" bios-install "$ISO" >/dev/null 2>&1
 echo "built $ISO"

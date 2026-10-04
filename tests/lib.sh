@@ -4,10 +4,12 @@ OUT="$ROOT/build/test"
 mkdir -p "$OUT"
 
 QEMU=(qemu-system-x86_64 -M q35 -m 128M -boot d -vga std -display none
-      -device isa-debug-exit,iobase=0xf4,iosize=0x04 -no-reboot -no-shutdown)
+      -device isa-debug-exit,iobase=0xf4,iosize=0x04 -no-reboot)
 TIMEOUT_TICKS=${TIMEOUT_TICKS:-300}   # 0.1 s each → 30 s
 
-fail() { echo "FAIL: $*" >&2; [ -f "${SERIAL:-}" ] && { echo "--- serial ---" >&2; cat "$SERIAL" >&2; }; exit 1; }
+# serial — the COM1 log with the kernel's \r\n line endings normalised.
+serial() { [ -f "${SERIAL:-}" ] && tr -d '\r' < "$SERIAL" || true; }
+fail() { echo "FAIL: $*" >&2; echo "--- serial ---" >&2; serial >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 
 # boot_iso <iso> <name> — starts QEMU in the background; sets SERIAL, MON, QPID.
@@ -16,15 +18,18 @@ boot_iso() {
   [ -f "$iso" ] || fail "$iso not built (run: make iso)"
   SERIAL="$OUT/$name.serial.log"; MON="$OUT/$name.monitor.sock"
   rm -f "$SERIAL" "$MON"
-  "${QEMU[@]}" -cdrom "$iso" -serial "file:$SERIAL" -monitor "unix:$MON,server,nowait" &
+  "${QEMU[@]}" -cdrom "$iso" -serial "file:$SERIAL" -monitor "unix:$MON,server,nowait" \
+    >"$OUT/$name.qemu.log" 2>&1 &
   QPID=$!
+  # Never leave a QEMU behind: it would hold the caller's pipes open forever.
+  trap 'kill "$QPID" 2>/dev/null || true' EXIT
 }
 
 # wait_for_line <regex> — polls the serial log until it matches or QEMU exits.
 wait_for_line() {
   local i
   for ((i = 0; i < TIMEOUT_TICKS; i++)); do
-    [ -f "$SERIAL" ] && grep -qE "$1" "$SERIAL" && return 0
+    serial | grep -qE "$1" && return 0
     kill -0 "$QPID" 2>/dev/null || return 1
     sleep 0.1
   done

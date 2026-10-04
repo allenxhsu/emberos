@@ -12,13 +12,17 @@ serial() { [ -f "${SERIAL:-}" ] && tr -d '\r' < "$SERIAL" || true; }
 fail() { echo "FAIL: $*" >&2; echo "--- serial ---" >&2; serial >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 
-# boot_iso <iso> <name> — starts QEMU in the background; sets SERIAL, MON, QPID.
+# boot_iso <iso> <name> <monitor-port> — starts QEMU in the background;
+# sets SERIAL, MONPORT, QPID. The monitor listens on TCP so tests can drive
+# it with bash's /dev/tcp and need no netcat (BSD and OpenBSD nc disagree
+# about when to exit).
 boot_iso() {
   local iso=$1 name=$2
   [ -f "$iso" ] || fail "$iso not built (run: make iso)"
-  SERIAL="$OUT/$name.serial.log"; MON="$OUT/$name.monitor.sock"
-  rm -f "$SERIAL" "$MON"
-  "${QEMU[@]}" -cdrom "$iso" -serial "file:$SERIAL" -monitor "unix:$MON,server,nowait" \
+  SERIAL="$OUT/$name.serial.log"; MONPORT=$3
+  rm -f "$SERIAL"
+  "${QEMU[@]}" -cdrom "$iso" -serial "file:$SERIAL" \
+    -monitor "tcp:127.0.0.1:$MONPORT,server,nowait" \
     >"$OUT/$name.qemu.log" 2>&1 &
   QPID=$!
   # Never leave a QEMU behind: it would hold the caller's pipes open forever.
@@ -46,8 +50,20 @@ wait_for_exit() {
   kill "$QPID" 2>/dev/null; fail "QEMU still running after timeout"
 }
 
-# monitor <cmd>... — sends commands to the QEMU monitor socket.
-monitor() { { printf '%s\n' "$@"; sleep 1; } | nc -U "$MON" >/dev/null; }
+# monitor <cmd>... — sends commands to the QEMU monitor over TCP.
+monitor() {
+  # Retry: a SIGCHLD from an exiting helper interrupts connect() and bash 3.2
+  # does not restart it, and QEMU may still be starting up.
+  local i
+  for ((i = 0; i < 20; i++)); do
+    { exec 3<>"/dev/tcp/127.0.0.1/$MONPORT"; } 2>/dev/null && break
+    sleep 0.2
+  done
+  [ "$i" -lt 20 ] || fail "cannot reach QEMU monitor on port $MONPORT"
+  printf '%s\n' "$@" >&3
+  sleep 1 # let QEMU act before we drop the connection
+  exec 3>&-
+}
 
 # ppm_stats <file> — prints "<zero-bytes> <nonzero-bytes>" of the pixel data.
 ppm_stats() {

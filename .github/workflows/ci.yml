@@ -3,9 +3,10 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 xorriso mtools build-essential netcat-openbsd
+      - run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 xorriso mtools build-essential
       - run: rustup show   # installs the pinned toolchain + target from rust-toolchain.toml
       - run: cargo fmt --check && cargo clippy -- -D warnings
       - run: make test

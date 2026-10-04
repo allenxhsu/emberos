@@ -6,7 +6,7 @@ set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 ISO=${1:-$ROOT/build/emberos-panic.iso}
 
-boot_iso "$ISO" panic
+boot_iso "$ISO" panic 4545
 code=0; wait_for_exit || code=$?
 [ "$code" -eq 35 ] || fail "expected QEMU exit 35 (panic), got $code"
 grep -q '^panic: ' <(serial) || fail "no 'panic: ' line on serial"

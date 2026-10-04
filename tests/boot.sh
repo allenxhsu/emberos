@@ -6,7 +6,7 @@ source "$(dirname "$0")/lib.sh"
 ISO=${1:-$ROOT/build/emberos.iso}
 SHOT="$OUT/boot.screen.ppm"; rm -f "$SHOT"
 
-boot_iso "$ISO" boot
+boot_iso "$ISO" boot 4544
 wait_for_line '^ready$' || fail "kernel never printed 'ready'"
 
 grep -qE '^EmberOS v[0-9]+\.[0-9]+\.[0-9]+$' <(serial) || fail "no version banner on serial"

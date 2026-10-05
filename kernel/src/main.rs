@@ -3,9 +3,13 @@
 #![no_std]
 #![no_main]
 
+mod font;
 mod framebuffer;
+mod port;
 mod qemu;
+mod rtc;
 mod serial;
+mod ui;
 
 use core::panic::PanicInfo;
 use limine::BaseRevision;
@@ -42,6 +46,9 @@ unsafe extern "C" fn kmain() -> ! {
         panic!("selftest");
     }
 
+    let time = rtc::now();
+    println!("clock: {:02}:{:02}", time.hour, time.minute);
+
     match FRAMEBUFFER_REQUEST
         .get_response()
         .and_then(|r| r.framebuffers().next())
@@ -56,8 +63,8 @@ unsafe extern "C" fn kmain() -> ! {
             // SAFETY: Limine guarantees this framebuffer is mapped and ours
             // to draw on for as long as we use its page tables.
             let mut screen = unsafe { framebuffer::Framebuffer::from_limine(&fb) };
-            screen.clear(framebuffer::BLACK);
-            screen.draw_text(16, 16, BANNER, framebuffer::WHITE);
+            ui::desktop::draw(&mut screen, time);
+            println!("desktop: drawn");
         }
         None => println!("framebuffer: none"),
     }

@@ -1,11 +1,29 @@
-//! Linear framebuffer handed over by Limine, plus a monospace bitmap font.
-use noto_sans_mono_bitmap::{FontWeight, RasterHeight, get_raster, get_raster_width};
+//! Linear framebuffer handed over by Limine: pixels and filled rectangles.
+//! Colours are 0x00RRGGBB. Everything clips to the screen.
 
-pub const BLACK: u32 = 0x0000_0000;
-pub const WHITE: u32 = 0x00FF_FFFF;
+#[derive(Clone, Copy)]
+pub struct Rect {
+    pub x: usize,
+    pub y: usize,
+    pub w: usize,
+    pub h: usize,
+}
 
-const FONT_HEIGHT: RasterHeight = RasterHeight::Size16;
-const FONT_WEIGHT: FontWeight = FontWeight::Regular;
+impl Rect {
+    pub const fn new(x: usize, y: usize, w: usize, h: usize) -> Self {
+        Self { x, y, w, h }
+    }
+
+    /// The rectangle `n` pixels inside this one on every side.
+    pub const fn inset(self, n: usize) -> Self {
+        Self::new(
+            self.x + n,
+            self.y + n,
+            self.w.saturating_sub(2 * n),
+            self.h.saturating_sub(2 * n),
+        )
+    }
+}
 
 pub struct Framebuffer {
     base: *mut u8,
@@ -29,6 +47,14 @@ impl Framebuffer {
         }
     }
 
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
     pub fn put_pixel(&mut self, x: usize, y: usize, colour: u32) {
         if x >= self.width || y >= self.height {
             return;
@@ -42,37 +68,11 @@ impl Framebuffer {
         }
     }
 
-    pub fn clear(&mut self, colour: u32) {
-        for y in 0..self.height {
-            for x in 0..self.width {
+    pub fn fill_rect(&mut self, r: Rect, colour: u32) {
+        for y in r.y..(r.y + r.h).min(self.height) {
+            for x in r.x..(r.x + r.w).min(self.width) {
                 self.put_pixel(x, y, colour);
             }
         }
     }
-
-    /// Draw `text` with its top-left corner at (x, y). Returns the x after it.
-    pub fn draw_text(&mut self, mut x: usize, y: usize, text: &str, colour: u32) -> usize {
-        let advance = get_raster_width(FONT_WEIGHT, FONT_HEIGHT);
-        for ch in text.chars() {
-            let glyph = get_raster(ch, FONT_WEIGHT, FONT_HEIGHT)
-                .or_else(|| get_raster('?', FONT_WEIGHT, FONT_HEIGHT))
-                .expect("'?' is in the basic-latin font block");
-            for (dy, row) in glyph.raster().iter().enumerate() {
-                for (dx, &intensity) in row.iter().enumerate() {
-                    if intensity > 0 {
-                        self.put_pixel(x + dx, y + dy, scale(colour, intensity));
-                    }
-                }
-            }
-            x += advance;
-        }
-        x
-    }
-}
-
-/// Multiply each 8-bit channel of an 0x00RRGGBB colour by `intensity / 255`.
-fn scale(colour: u32, intensity: u8) -> u32 {
-    let i = intensity as u32;
-    let ch = |shift: u32| (((colour >> shift) & 0xFF) * i / 255) << shift;
-    ch(16) | ch(8) | ch(0)
 }

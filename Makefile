@@ -34,7 +34,7 @@ build/emberos-panic.iso: limine
 	scripts/mkiso.sh target/panic/$(TARGET)/$(PROFILE_DIR)/emberos $@
 
 run: iso
-	$(QEMU) -cdrom build/emberos.iso -serial stdio
+	$(QEMU) -cdrom build/emberos.iso -serial stdio -rtc base=localtime
 
 test: iso build/emberos-panic.iso
 	tests/boot.sh

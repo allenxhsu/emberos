@@ -4,7 +4,8 @@ OUT="$ROOT/build/test"
 mkdir -p "$OUT"
 
 QEMU=(qemu-system-x86_64 -M q35 -m 128M -boot d -vga std -display none
-      -device isa-debug-exit,iobase=0xf4,iosize=0x04 -no-reboot)
+      -device isa-debug-exit,iobase=0xf4,iosize=0x04 -no-reboot
+      -rtc base=2026-01-02T15:04:05,clock=vm)
 TIMEOUT_TICKS=${TIMEOUT_TICKS:-300}   # 0.1 s each → 30 s
 
 # serial — the COM1 log with the kernel's \r\n line endings normalised.
@@ -63,13 +64,4 @@ monitor() {
   printf '%s\n' "$@" >&3
   sleep 1 # let QEMU act before we drop the connection
   exec 3>&-
-}
-
-# ppm_stats <file> — prints "<zero-bytes> <nonzero-bytes>" of the pixel data.
-ppm_stats() {
-  local total nz
-  head -c 2 "$1" | grep -q '^P6$' || fail "$1 is not a binary PPM"
-  total=$(wc -c < "$1" | tr -d ' ')
-  nz=$(tr -d '\000' < "$1" | wc -c | tr -d ' ')
-  echo "$((total - nz)) $nz"
 }
